@@ -2,10 +2,11 @@ import { Routes, Route, Link } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 import { User } from '@supabase/supabase-js';
-import { UserProfile, UserRole } from './types/database';
+import { UserProfile } from './types/database';
 import Daftar from './Daftar';
 import Masuk from './Masuk';
 import AdminUserManagement from './AdminUserManagement';
+import SidebarLayout from './SidebarLayout';
 
 const INACTIVITY_LIMIT_MS = 30 * 60 * 1000;
 
@@ -87,21 +88,6 @@ function Home() {
     };
   }, [user]);
 
-  const getRoleBadge = (role?: UserRole) => {
-    switch (role) {
-      case 'super_admin':
-        return <span className="bg-purple-100 text-purple-800 text-xs px-2.5 py-0.5 rounded font-bold">Super Admin</span>;
-      case 'sekretaris':
-        return <span className="bg-blue-100 text-blue-800 text-xs px-2.5 py-0.5 rounded font-bold">Sekretaris</span>;
-      case 'bendahara':
-        return <span className="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-0.5 rounded font-bold">Bendahara</span>;
-      case 'pengurus':
-        return <span className="bg-amber-100 text-amber-800 text-xs px-2.5 py-0.5 rounded font-bold">Pengurus</span>;
-      default:
-        return <span className="bg-gray-100 text-gray-800 text-xs px-2.5 py-0.5 rounded font-bold">Anggota</span>;
-    }
-  };
-
   if (loading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-100">
@@ -110,51 +96,12 @@ function Home() {
     );
   }
 
-  return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
-      <div className="bg-white p-8 rounded-xl shadow-md text-center max-w-lg w-full">
-        <h1 className="text-3xl font-bold text-blue-600 mb-2">APP Arisan</h1>
-        <p className="text-gray-600 mb-6">Manajemen Arisan & Tabungan Kelompok</p>
-
-        {user ? (
-          <div className="space-y-4">
-            <div className="p-4 bg-gray-50 border rounded-lg text-left space-y-2">
-              <div className="flex justify-between items-center">
-                <p className="font-semibold text-gray-800">{profile?.full_name || 'Pengguna'}</p>
-                {getRoleBadge(profile?.role)}
-              </div>
-              <p className="text-sm text-gray-600 truncate">{user.email}</p>
-            </div>
-
-            {profile?.role === 'super_admin' && (
-              <div className="p-3 bg-purple-50 text-purple-900 border border-purple-200 rounded-lg text-sm text-left">
-                <p className="font-bold">Akses Super Admin:</p>
-                <p>Anda memiliki hak akses penuh untuk mengelola pengguna, menghapus akun, dan mengatur pengurus arisan.</p>
-              </div>
-            )}
-
-            {profile?.role === 'pengurus' && (
-              <div className="p-3 bg-blue-50 text-blue-900 border border-blue-200 rounded-lg text-sm text-left">
-                <p className="font-bold">Akses Pengurus Arisan:</p>
-                <p>Anda dapat membuat kelompok arisan, mengocok pemenang, dan mencatat pembayaran anggota.</p>
-              </div>
-            )}
-
-            {profile?.role === 'anggota' && (
-              <div className="p-3 bg-green-50 text-green-900 border border-green-200 rounded-lg text-sm text-left">
-                <p className="font-bold">Akses Anggota:</p>
-                <p>Anda dapat melihat status grup arisan, jadwal pengocokan, dan riwayat pembayaran Anda.</p>
-              </div>
-            )}
-
-            <button
-              onClick={handleLogout}
-              className="w-full bg-red-600 text-white px-4 py-2 rounded-lg font-medium hover:bg-red-700 transition"
-            >
-              Keluar (Logout)
-            </button>
-          </div>
-        ) : (
+  if (!user) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
+        <div className="bg-white p-8 rounded-xl shadow-md text-center max-w-lg w-full">
+          <h1 className="text-3xl font-bold text-blue-600 mb-2">Arisan 1/6</h1>
+          <p className="text-gray-600 mb-6">Manajemen Arisan & Tabungan Kelompok</p>
           <div className="flex justify-center gap-4">
             <Link
               to="/daftar"
@@ -169,12 +116,30 @@ function Home() {
               Masuk
             </Link>
           </div>
-        )}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <SidebarLayout user={user} profile={profile} handleLogout={handleLogout}>
+      {/* Clean Header Card */}
+      <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 w-full mb-6">
+        <h2 className="text-2xl font-bold text-gray-800">
+          Selamat datang, {profile?.full_name || 'Pengguna'}!
+        </h2>
+        <p className="text-xs font-semibold text-gray-500 mt-1 uppercase tracking-wider">
+          {profile?.role ? profile.role.replace('_', ' ') : 'Anggota'}
+        </p>
       </div>
 
-      {/* Render Management Table if User is Super Admin */}
-      {user && profile?.role === 'super_admin' && <AdminUserManagement />}
-    </div>
+      {/* Full-Width Table Area */}
+      {profile?.role === 'super_admin' && (
+        <div className="w-full">
+          <AdminUserManagement />
+        </div>
+      )}
+    </SidebarLayout>
   );
 }
 

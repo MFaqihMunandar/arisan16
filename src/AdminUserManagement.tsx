@@ -99,7 +99,7 @@ export default function AdminUserManagement() {
   const superAdminCount = users.filter((u) => u.role === 'super_admin').length;
 
   return (
-    <div className="bg-white p-6 rounded-xl shadow-md w-full max-w-4xl mt-6 text-left">
+    <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 w-full">
       <div className="flex justify-between items-center mb-4">
         <div>
           <h2 className="text-xl font-bold text-gray-800">Manajemen Pengguna & Pengurus</h2>
