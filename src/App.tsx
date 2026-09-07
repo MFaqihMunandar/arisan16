@@ -1,4 +1,4 @@
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
+import { Routes, Route, Link } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 import { User } from '@supabase/supabase-js';
@@ -13,7 +13,7 @@ function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const handleLogout = async () => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
@@ -88,19 +88,19 @@ function Home() {
   }, [user]);
 
   const getRoleBadge = (role?: UserRole) => {
-	  switch (role) {
-		case 'super_admin':
-		  return <span className="bg-purple-100 text-purple-800 text-xs px-2.5 py-0.5 rounded font-bold">Super Admin</span>;
-		case 'sekretaris':
-		  return <span className="bg-blue-100 text-blue-800 text-xs px-2.5 py-0.5 rounded font-bold">Sekretaris</span>;
-		case 'bendahara':
-		  return <span className="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-0.5 rounded font-bold">Bendahara</span>;
-		case 'pengurus':
-		  return <span className="bg-amber-100 text-amber-800 text-xs px-2.5 py-0.5 rounded font-bold">Pengurus</span>;
-		default:
-		  return <span className="bg-gray-100 text-gray-800 text-xs px-2.5 py-0.5 rounded font-bold">Anggota</span>;
-	  }
-	};
+    switch (role) {
+      case 'super_admin':
+        return <span className="bg-purple-100 text-purple-800 text-xs px-2.5 py-0.5 rounded font-bold">Super Admin</span>;
+      case 'sekretaris':
+        return <span className="bg-blue-100 text-blue-800 text-xs px-2.5 py-0.5 rounded font-bold">Sekretaris</span>;
+      case 'bendahara':
+        return <span className="bg-emerald-100 text-emerald-800 text-xs px-2.5 py-0.5 rounded font-bold">Bendahara</span>;
+      case 'pengurus':
+        return <span className="bg-amber-100 text-amber-800 text-xs px-2.5 py-0.5 rounded font-bold">Pengurus</span>;
+      default:
+        return <span className="bg-gray-100 text-gray-800 text-xs px-2.5 py-0.5 rounded font-bold">Anggota</span>;
+    }
+  };
 
   if (loading) {
     return (
@@ -180,12 +180,10 @@ function Home() {
 
 export default function App() {
   return (
-    <Router>
-      <Routes>
-        <Route path="/" element={<Home />} />
-        <Route path="/daftar" element={<Daftar />} />
-        <Route path="/login" element={<Masuk />} />
-      </Routes>
-    </Router>
+    <Routes>
+      <Route path="/" element={<Home />} />
+      <Route path="/daftar" element={<Daftar />} />
+      <Route path="/login" element={<Masuk />} />
+    </Routes>
   );
 }
