@@ -1,0 +1,5 @@
+run this sql
+
+UPDATE public.profiles
+SET role = 'super_admin'::user_role_type
+WHERE email = 'faqihmunandar479@gmail.com';
