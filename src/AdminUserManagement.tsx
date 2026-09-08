@@ -123,6 +123,7 @@ export default function AdminUserManagement() {
         <table className="w-full text-sm text-left text-gray-600 border-collapse">
           <thead className="bg-gray-100 text-gray-700 uppercase text-xs">
             <tr>
+              <th className="p-3 border-b">ID User App</th>
               <th className="p-3 border-b">Nama Lengkap</th>
               <th className="p-3 border-b">Email</th>
               <th className="p-3 border-b">Jabatan / Role</th>
@@ -130,13 +131,19 @@ export default function AdminUserManagement() {
             </tr>
           </thead>
           <tbody>
-            {users.map((item) => {
+            {users.map((item, index) => {
               const isSelf = item.id === currentUserId;
               const isOnlySuperAdmin = item.role === 'super_admin' && superAdminCount <= 1;
               const disableDelete = isSelf || isOnlySuperAdmin;
 
+              // Format ID App sequentially (e.g., USR-001, USR-002) or use custom field if defined
+              const appUserId = `USR-${String(index + 1).padStart(3, '0')}`;
+
               return (
                 <tr key={item.id} className="border-b hover:bg-gray-50">
+                  <td className="p-3 font-mono font-bold text-blue-600">
+                    {appUserId}
+                  </td>
                   <td className="p-3 font-medium text-gray-800">{item.full_name || '-'}</td>
                   <td className="p-3">{item.email}</td>
                   <td className="p-3">

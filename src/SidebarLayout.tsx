@@ -13,15 +13,31 @@ import {
   X
 } from 'lucide-react';
 
+export type TabType = 'kelola_pengguna' | 'grup_arisan' | 'kas' | 'pengocokan' | 'laporan' | 'pengaturan';
+
 interface SidebarLayoutProps {
   user: User | null;
   profile: UserProfile | null;
   handleLogout: () => Promise<void>;
+  activeTab: TabType;
+  setActiveTab: (tab: TabType) => void;
   children: React.ReactNode;
 }
 
-export default function SidebarLayout({ user, profile, handleLogout, children }: SidebarLayoutProps) {
+export default function SidebarLayout({ 
+  user, 
+  profile, 
+  handleLogout, 
+  activeTab, 
+  setActiveTab, 
+  children 
+}: SidebarLayoutProps) {
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+
+  const handleTabClick = (tab: TabType) => {
+    setActiveTab(tab);
+    setIsMobileOpen(false); // Close mobile menu after selecting tab
+  };
 
   const getRoleBadge = (role?: UserRole) => {
     switch (role) {
@@ -110,35 +126,77 @@ export default function SidebarLayout({ user, profile, handleLogout, children }:
         {/* Scrollable Navigation Menu */}
         <nav className="flex-1 overflow-y-auto p-3 space-y-1">
           {profile?.role === 'super_admin' && (
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg">
-              <ShieldCheck className="w-4 h-4" />
+            <button 
+              onClick={() => handleTabClick('kelola_pengguna')}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition ${
+                activeTab === 'kelola_pengguna'
+                  ? 'bg-blue-50 text-blue-600 font-semibold'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <ShieldCheck className={`w-4 h-4 ${activeTab === 'kelola_pengguna' ? 'text-blue-600' : 'text-gray-500'}`} />
               Kelola Pengguna
             </button>
           )}
 
-          <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition">
-            <Users className="w-4 h-4 text-gray-500" />
+          <button
+            onClick={() => handleTabClick('grup_arisan')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition ${
+              activeTab === 'grup_arisan'
+                ? 'bg-blue-50 text-blue-600 font-semibold'
+                : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <Users className={`w-4 h-4 ${activeTab === 'grup_arisan' ? 'text-blue-600' : 'text-gray-500'}`} />
             Grup Arisan
           </button>
 
-          <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition">
-            <Wallet className="w-4 h-4 text-gray-500" />
+          <button 
+            onClick={() => handleTabClick('kas')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition ${
+              activeTab === 'kas'
+                ? 'bg-blue-50 text-blue-600 font-semibold'
+                : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <Wallet className={`w-4 h-4 ${activeTab === 'kas' ? 'text-blue-600' : 'text-gray-500'}`} />
             Catatan Kas & Payment
           </button>
 
-          <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition">
-            <Shuffle className="w-4 h-4 text-gray-500" />
+          <button 
+            onClick={() => handleTabClick('pengocokan')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition ${
+              activeTab === 'pengocokan'
+                ? 'bg-blue-50 text-blue-600 font-semibold'
+                : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <Shuffle className={`w-4 h-4 ${activeTab === 'pengocokan' ? 'text-blue-600' : 'text-gray-500'}`} />
             Pengocokan Arisan
           </button>
 
-          <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition">
-            <FileText className="w-4 h-4 text-gray-500" />
+          <button 
+            onClick={() => handleTabClick('laporan')}
+            className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition ${
+              activeTab === 'laporan'
+                ? 'bg-blue-50 text-blue-600 font-semibold'
+                : 'text-gray-700 hover:bg-gray-100'
+            }`}
+          >
+            <FileText className={`w-4 h-4 ${activeTab === 'laporan' ? 'text-blue-600' : 'text-gray-500'}`} />
             Laporan Pengurus
           </button>
 
           <div className="pt-2 border-t border-gray-100 mt-2">
-            <button className="w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-100 rounded-lg transition">
-              <Settings className="w-4 h-4 text-gray-500" />
+            <button 
+              onClick={() => handleTabClick('pengaturan')}
+              className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition ${
+                activeTab === 'pengaturan'
+                  ? 'bg-blue-50 text-blue-600 font-semibold'
+                  : 'text-gray-700 hover:bg-gray-100'
+              }`}
+            >
+              <Settings className={`w-4 h-4 ${activeTab === 'pengaturan' ? 'text-blue-600' : 'text-gray-500'}`} />
               Pengaturan Profil
             </button>
           </div>
