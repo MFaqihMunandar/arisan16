@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
-import GroupKasManagement from './GroupKasManagement';
+//import GroupKasManagement from './GroupKasManagement';
 
 interface GroupArisanManagementProps {
   currentUserId?: string;

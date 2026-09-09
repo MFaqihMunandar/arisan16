@@ -11,16 +11,17 @@ const generateReceiptNumber = () => {
   return `KWT-${dateStr}-${randomSuffix}`;
 };
 
-export default function CatatanKasAndPayment({ currentUserId }: CatatanKasAndPaymentProps) {
+//export default function CatatanKasAndPayment({ currentUserId }: CatatanKasAndPaymentProps) {
+export default function CatatanKasAndPayment() {
   // Active Groups state for Arisan
   const [activeGroups, setActiveGroups] = useState<any[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
-  const [selectedGroup, setSelectedGroup] = useState<any>(null);
+  //const [selectedGroup, setSelectedGroup] = useState<any>(null);
 
   // Active Kas Groups state for Kas
   const [activeKasGroups, setActiveKasGroups] = useState<any[]>([]);
   const [selectedKasGroupId, setSelectedKasGroupId] = useState<string>('');
-  const [selectedKasGroup, setSelectedKasGroup] = useState<any>(null);
+  //const [selectedKasGroup, setSelectedKasGroup] = useState<any>(null);
 
   // Modal specific selections
   const [modalGroupId, setModalGroupId] = useState<string>('');
@@ -83,7 +84,7 @@ export default function CatatanKasAndPayment({ currentUserId }: CatatanKasAndPay
     if (groupsData && groupsData.length > 0) {
       setActiveGroups(groupsData);
       setSelectedGroupId(groupsData[0].id);
-      setSelectedGroup(groupsData[0]);
+      //setSelectedGroup(groupsData[0]);
     } else {
       setActiveGroups([]);
     }
@@ -102,7 +103,7 @@ export default function CatatanKasAndPayment({ currentUserId }: CatatanKasAndPay
     if (kasGroupsData && kasGroupsData.length > 0) {
       setActiveKasGroups(kasGroupsData);
       setSelectedKasGroupId(kasGroupsData[0].id);
-      setSelectedKasGroup(kasGroupsData[0]);
+      //setSelectedKasGroup(kasGroupsData[0]);
     } else {
       setActiveKasGroups([]);
     }
@@ -129,8 +130,8 @@ export default function CatatanKasAndPayment({ currentUserId }: CatatanKasAndPay
   // Fetch Arisan payments whenever top Arisan group changes
   useEffect(() => {
     if (selectedGroupId) {
-      const group = activeGroups.find((g) => g.id === selectedGroupId);
-      setSelectedGroup(group || null);
+      //const group = activeGroups.find((g) => g.id === selectedGroupId);
+      //setSelectedGroup(group || null);
       fetchArisanPayments(selectedGroupId);
     }
   }, [selectedGroupId, activeGroups]);
@@ -138,8 +139,8 @@ export default function CatatanKasAndPayment({ currentUserId }: CatatanKasAndPay
   // Fetch Kas payments whenever top Kas group changes
   useEffect(() => {
     if (selectedKasGroupId) {
-      const kasGroup = activeKasGroups.find((g) => g.id === selectedKasGroupId);
-      setSelectedKasGroup(kasGroup || null);
+      //const kasGroup = activeKasGroups.find((g) => g.id === selectedKasGroupId);
+      //setSelectedKasGroup(kasGroup || null);
       fetchKasPayments(selectedKasGroupId);
     }
   }, [selectedKasGroupId, activeKasGroups]);

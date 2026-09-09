@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import GroupArisanManagement from './GroupArisanManagement';
 import GroupKasManagement from './GroupKasManagement';
 
