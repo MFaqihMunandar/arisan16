@@ -7,8 +7,12 @@ const generateReceiptNumber = () => {
   return `KWT-${dateStr}-${randomSuffix}`;
 };
 
-//export default function CatatanKasAndPayment({ currentUserId }: CatatanKasAndPaymentProps) {
-export default function CatatanKasAndPayment() {
+interface CatatanKasAndPaymentProps {
+  currentUserId?: string;
+}
+
+export default function CatatanKasAndPayment({ currentUserId }: CatatanKasAndPaymentProps) {
+
   // Active Groups state for Arisan
   const [activeGroups, setActiveGroups] = useState<any[]>([]);
   const [selectedGroupId, setSelectedGroupId] = useState<string>('');
@@ -190,12 +194,6 @@ export default function CatatanKasAndPayment() {
       .eq('category', 'kas_kolektif')
       .gte('created_at', twoYearsAgo.toISOString())
       .order('created_at', { ascending: false });
-	  
-	console.log('--- SUPABASE KAS QUERY RESULT ---');
-console.log('Error:', error);
-console.log('Data returned:', paymentsData);
-console.log('Kas Group ID :', kasGroupId);
-console.log('created at :', twoYearsAgo.toISOString());
 
     if (error || !paymentsData) {
       setKasPayments([]);
@@ -381,6 +379,13 @@ console.log('created at :', twoYearsAgo.toISOString());
     setFormLoading(true);
     setFormError('');
 
+    // Retrieve active user ID from Supabase if not passed as a prop
+    let activeUserId = currentUserId;
+    if (!activeUserId) {
+      const { data: authData } = await supabase.auth.getUser();
+      activeUserId = authData?.user?.id;
+    }
+
     const receiptNum = generateReceiptNumber();
     const totalMembers = groupMembers.length > 0 ? groupMembers.length : (modalSelectedGroup?.cycle_count || 1);
     const currentCycle = Number(modalSelectedGroup?.cycle_schedule || 1);
@@ -395,6 +400,7 @@ console.log('created at :', twoYearsAgo.toISOString());
       cycle_count: paymentType === 'arisan' ? totalMembers : 1,
       cycle_schedule: paymentType === 'arisan' ? currentCycle.toString() : '1',
       description: description.trim() || null,
+      submitted_by: activeUserId || selectedMember.user_id, // Add submitted_by here
     };
 
     const { error } = await supabase

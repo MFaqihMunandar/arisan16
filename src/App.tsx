@@ -8,6 +8,7 @@ import Masuk from './Masuk';
 import AdminUserManagement from './AdminUserManagement';
 import GroupArisanManagement from './GroupManagementPage';
 import CatatanKasAndPayment from './CatatanKasAndPayment';
+import { PengocokanArisan } from './PengocokanArisan';
 import SidebarLayout from './SidebarLayout';
 
 const INACTIVITY_LIMIT_MS = 30 * 60 * 1000;
@@ -161,10 +162,14 @@ function Home() {
         )}
 
         {activeTab === 'kas' && (
-          <CatatanKasAndPayment />
+          <CatatanKasAndPayment currentUserId={user?.id} />
         )}
 
-        {['pengocokan', 'laporan', 'pengaturan'].includes(activeTab) && (
+        {activeTab === 'pengocokan' && (
+          <PengocokanArisan currentUserId={user?.id} onNavigateToGroupManagement={() => setActiveTab('grup_arisan')} />
+        )}
+
+        {['laporan', 'pengaturan'].includes(activeTab) && (
           <div className="bg-white p-8 rounded-xl border border-gray-200 text-center text-gray-500">
             Fitur sedang dalam pengembangan.
           </div>
