@@ -161,7 +161,7 @@ function Home() {
         )}
 
         {activeTab === 'kas' && (
-          <CatatanKasAndPayment currentUserId={user?.id} />
+          <CatatanKasAndPayment />
         )}
 
         {['pengocokan', 'laporan', 'pengaturan'].includes(activeTab) && (

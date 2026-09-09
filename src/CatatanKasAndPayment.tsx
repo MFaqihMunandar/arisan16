@@ -1,10 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 
-interface CatatanKasAndPaymentProps {
-  currentUserId?: string;
-}
-
 const generateReceiptNumber = () => {
   const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
   const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
