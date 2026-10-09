@@ -42,9 +42,9 @@ export default function LaporanPengurus({ currentUserId }: LaporanPengurusProps)
       {/* Tab Content Rendering */}
       <div className="w-full">
         {activeTab === 'arisan' ? (
-          <LaporanArisan />
+          <LaporanArisan currentUserId={currentUserId} />
         ) : (
-          <LaporanKas />
+          <LaporanKas currentUserId={currentUserId} />
         )}
       </div>
     </div>
