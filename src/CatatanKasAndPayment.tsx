@@ -395,8 +395,7 @@ export default function CatatanKasAndPayment({ currentUserId }: CatatanKasAndPay
 
     // Calculate signed amount (- for withdrawal, + for deposit)
     const rawNominal = Number(nominal);
-    //const finalAmount = paymentType === 'penarikan' ? -Math.abs(rawNominal) : Math.abs(rawNominal);
-	const finalAmount = Math.abs(rawNominal);
+    const finalAmount = Math.abs(rawNominal);
     const categoryMap = {
       arisan: 'setoran_arisan',
       kas: 'kas_kolektif',
@@ -478,14 +477,14 @@ export default function CatatanKasAndPayment({ currentUserId }: CatatanKasAndPay
   };
   
   const calculateKasBalance = (paymentsList: any[]) => {
-  return paymentsList.reduce((total, p) => {
-    const amount = Math.abs(Number(p.amount));
-    if (p.category === 'penarikan_kas') {
-      return total - amount; // Deduct withdrawals
-    }
-    return total + amount; // Add deposits
-  }, 0);
-};
+    return paymentsList.reduce((total, p) => {
+      const amount = Math.abs(Number(p.amount));
+      if (p.category === 'penarikan_kas') {
+        return total - amount; // Deduct withdrawals
+      }
+      return total + amount; // Add deposits
+    }, 0);
+  };
 
   const filteredArisanPayments = filterPaymentsList(arisanPayments);
   const filteredKasPayments = filterPaymentsList(kasPayments);
@@ -664,10 +663,15 @@ export default function CatatanKasAndPayment({ currentUserId }: CatatanKasAndPay
           {activeTableTab === 'kas' && (
             <div>
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-4">
-                <h3 className="font-bold text-gray-800 text-sm flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full bg-green-600"></span>
-                  Riwayat Mutasi Kas (Setoran & Penarikan)
-                </h3>
+                <div>
+                  <h3 className="font-bold text-gray-800 text-sm flex items-center gap-2">
+                    <span className="w-2.5 h-2.5 rounded-full bg-green-600"></span>
+                    Riwayat Mutasi Kas (Setoran & Penarikan)
+                  </h3>
+                  <p className="text-xs text-gray-500 mt-0.5">
+                    Saldo Kas Berjalan: <span className="font-bold text-emerald-600">Rp {calculateKasBalance(filteredKasPayments).toLocaleString('id-ID')}</span>
+                  </p>
+                </div>
                 <select
                   value={selectedKasGroupId}
                   onChange={(e) => setSelectedKasGroupId(e.target.value)}
@@ -709,44 +713,44 @@ export default function CatatanKasAndPayment({ currentUserId }: CatatanKasAndPay
                       </tr>
                     ) : (
                       filteredKasPayments.map((p) => {
-					  const isWithdrawal = p.category === 'penarikan_kas' || Number(p.amount) < 0;
-					  
-					  return (
-						<tr key={p.id} className="hover:bg-gray-50">
-						  <td className="py-2.5 px-3 font-mono font-semibold text-blue-600">{p.receipt_number || 'N/A'}</td>
-						  <td className="py-2.5 px-3">
-							{isWithdrawal ? (
-							  <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-100 text-amber-800">
-								Penarikan Kas
-							  </span>
-							) : (
-							  <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-100 text-emerald-800">
-								Setoran Kas
-							  </span>
-							)}
-						  </td>
-						  <td className="py-2.5 px-3 font-medium text-gray-800">{p.profile?.full_name || 'Admin Kas'}</td>
-						  {/* Subtract/prefix with minus if withdrawal */}
-						  <td className={`py-2.5 px-3 font-bold ${isWithdrawal ? 'text-red-600' : 'text-emerald-600'}`}>
-							{isWithdrawal 
-							  ? `- Rp ${Math.abs(Number(p.amount)).toLocaleString('id-ID')}` 
-							  : `+ Rp ${Number(p.amount).toLocaleString('id-ID')}`}
-						  </td>
-						  <td className="py-2.5 px-3 text-gray-500">
-							{p.created_at ? new Date(p.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
-						  </td>
-						  <td className="py-2.5 px-3 text-gray-500 max-w-[180px] truncate">{p.description || '-'}</td>
-						  <td className="py-2.5 px-3 text-center">
-							<button
-							  onClick={() => setSelectedReceipt(p)}
-							  className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-medium rounded transition"
-							>
-							  Lihat Bukti
-							</button>
-						  </td>
-						</tr>
-					  );
-					})
+                        const isWithdrawal = p.category === 'penarikan_kas' || Number(p.amount) < 0;
+                        
+                        return (
+                          <tr key={p.id} className="hover:bg-gray-50">
+                            <td className="py-2.5 px-3 font-mono font-semibold text-blue-600">{p.receipt_number || 'N/A'}</td>
+                            <td className="py-2.5 px-3">
+                              {isWithdrawal ? (
+                                <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-amber-100 text-amber-800">
+                                  Penarikan Kas
+                                </span>
+                              ) : (
+                                <span className="px-2 py-0.5 text-[10px] font-bold rounded bg-emerald-100 text-emerald-800">
+                                  Setoran Kas
+                                </span>
+                              )}
+                            </td>
+                            <td className="py-2.5 px-3 font-medium text-gray-800">{p.profile?.full_name || 'Admin Kas'}</td>
+                            {/* Subtract/prefix with minus if withdrawal */}
+                            <td className={`py-2.5 px-3 font-bold ${isWithdrawal ? 'text-red-600' : 'text-emerald-600'}`}>
+                              {isWithdrawal 
+                                ? `- Rp ${Math.abs(Number(p.amount)).toLocaleString('id-ID')}` 
+                                : `+ Rp ${Number(p.amount).toLocaleString('id-ID')}`}
+                            </td>
+                            <td className="py-2.5 px-3 text-gray-500">
+                              {p.created_at ? new Date(p.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' }) : '-'}
+                            </td>
+                            <td className="py-2.5 px-3 text-gray-500 max-w-[180px] truncate">{p.description || '-'}</td>
+                            <td className="py-2.5 px-3 text-center">
+                              <button
+                                onClick={() => setSelectedReceipt(p)}
+                                className="px-2.5 py-1 bg-gray-100 hover:bg-gray-200 text-gray-700 text-[11px] font-medium rounded transition"
+                              >
+                                Lihat Bukti
+                              </button>
+                            </td>
+                          </tr>
+                        );
+                      })
                     )}
                   </tbody>
                 </table>
