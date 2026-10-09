@@ -21,7 +21,6 @@ export default function LaporanArisan() {
 
   const [arisanGroups, setArisanGroups] = useState<any[]>([]);
   const [payments, setPayments] = useState<any[]>([]);
-  const [drawHistory, setDrawHistory] = useState<any[]>([]);
   const [profiles, setProfiles] = useState<any[]>([]);
   const [groupMembers, setGroupMembers] = useState<any[]>([]);
   const [unpaidSummaries, setUnpaidSummaries] = useState<MemberUnpaidSummary[]>([]);
@@ -66,26 +65,13 @@ export default function LaporanArisan() {
       }));
       setPayments(enrichedPayments);
 
-      const { data: drawData } = await supabase
-        .from('draw_history')
-        .select('*')
-        .gte('created_at', startOfYear)
-        .lte('created_at', endOfYear)
-        .order('created_at', { ascending: false });
-
-      const enrichedDraws = (drawData || []).map((d: any) => ({
-        ...d,
-        profile: profileMap.get(d.winner_id) || { full_name: 'Tanpa Nama', email: '-' },
-      }));
-      setDrawHistory(enrichedDraws);
-
       const { data: membersData } = await supabase.from('group_members').select('*');
       setGroupMembers(membersData || []);
 
       calculateUnpaidSetoran(arisanData || [], membersData || [], enrichedPayments, profileMap);
     } catch (err) {
       console.error('Error loading arisan report data:', err);
-    } finally {
+    } fontally {
       setLoading(false);
     }
   };
