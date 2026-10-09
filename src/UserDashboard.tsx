@@ -13,7 +13,7 @@ import {
 
 export default function UserDashboard() {
   const [loading, setLoading] = useState<boolean>(true);
-  const [_currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   
   // Stats
   const [joinedGroupsCount, setJoinedGroupsCount] = useState<number>(0);
