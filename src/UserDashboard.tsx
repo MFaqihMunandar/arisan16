@@ -266,4 +266,68 @@ export default function UserDashboard({ currentUserId }: UserDashboardProps) {
       </div>
 
       {/* SECTION 2: PAYMENT HISTORY LOGS */}
-      <div className="bg-white border border-gray-200 rounded-
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
+        <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
+          <Calendar className="w-5 h-5 text-indigo-600" />
+          Riwayat Transaksi & Setoran Saya
+        </h3>
+
+        <div className="overflow-x-auto border border-gray-200 rounded-xl">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead className="bg-gray-100 text-gray-700 border-b border-gray-200 font-bold uppercase">
+              <tr>
+                <th className="py-3 px-4">No. Resi / Tanggal</th>
+                <th className="py-3 px-4">Kategori</th>
+                <th className="py-3 px-4">Kocokan / Ket</th>
+                <th className="py-3 px-4 text-right">Nominal</th>
+                <th className="py-3 px-4 text-center">Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {myPayments.length === 0 ? (
+                <tr>
+                  <td colSpan={5} className="text-center py-6 text-gray-400">
+                    Belum ada riwayat transaksi setoran.
+                  </td>
+                </tr>
+              ) : (
+                myPayments.map((p) => (
+                  <tr key={p.id} className="hover:bg-gray-50 transition">
+                    <td className="py-3 px-4">
+                      <p className="font-bold text-gray-800">{p.receipt_number || '-'}</p>
+                      <p className="text-[10px] text-gray-400">
+                        {new Date(p.created_at).toLocaleDateString('id-ID', {
+                          day: '2-digit',
+                          month: 'short',
+                          year: 'numeric',
+                        })}
+                      </p>
+                    </td>
+                    <td className="py-3 px-4">
+                      <span className={`font-semibold ${
+                        p.category === 'setoran_arisan' ? 'text-indigo-600' : 'text-emerald-600'
+                      }`}>
+                        {p.category === 'setoran_arisan' ? 'Setoran Arisan' : 'Kas Operasional'}
+                      </span>
+                    </td>
+                    <td className="py-3 px-4 text-gray-600">
+                      {p.cycle_schedule ? `Kocokan Ke-${p.cycle_schedule}` : p.description || '-'}
+                    </td>
+                    <td className="py-3 px-4 text-right font-mono font-bold text-gray-900">
+                      Rp {Math.abs(Number(p.amount) || 0).toLocaleString('id-ID')}
+                    </td>
+                    <td className="py-3 px-4 text-center">
+                      <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                        <CheckCircle className="w-3 h-3" /> Sukses
+                      </span>
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
