@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 import { 
   Users, 
@@ -16,7 +16,6 @@ interface UserDashboardProps {
 
 export default function UserDashboard({ currentUserId }: UserDashboardProps) {
   const [loading, setLoading] = useState<boolean>(true);
-  const [currentUser, setCurrentUser] = useState<any>(null);
   
   // Stats
   const [joinedGroupsCount, setJoinedGroupsCount] = useState<number>(0);
@@ -44,9 +43,6 @@ export default function UserDashboard({ currentUserId }: UserDashboardProps) {
           return;
         }
         targetUserId = user.id;
-        setCurrentUser(user);
-      } else {
-        setCurrentUser({ id: currentUserId });
       }
 
       // 2. Fetch User's Arisan Group Memberships
