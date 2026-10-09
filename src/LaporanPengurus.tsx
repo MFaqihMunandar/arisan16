@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import LaporanArisan from './LaporanArisan';
 import LaporanKas from './LaporanKas';
 import { PiggyBank, Wallet } from 'lucide-react';
