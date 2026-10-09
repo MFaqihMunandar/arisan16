@@ -41,10 +41,11 @@ export default function AdminUserManagement() {
       return;
     }
 
-    const { error } = await supabase
-      .from('profiles')
-      .update({ role: newRole })
-      .eq('id', userId);
+    // Call RPC Function instead of direct UPDATE
+    const { error } = await supabase.rpc('update_user_role', {
+      target_user_id: userId,
+      new_role: newRole,
+    });
 
     if (error) {
       alert('Gagal memperbarui jabatan/peran: ' + error.message);
@@ -67,10 +68,10 @@ export default function AdminUserManagement() {
 
     if (!confirm(`Apakah Anda yakin ingin menghapus pengguna "${name}"?`)) return;
 
-    const { error } = await supabase
-      .from('profiles')
-      .delete()
-      .eq('id', userId);
+    // Call RPC Function instead of direct DELETE
+    const { error } = await supabase.rpc('delete_user_by_admin', {
+      target_user_id: userId,
+    });
 
     if (error) {
       alert('Gagal menghapus pengguna: ' + error.message);
