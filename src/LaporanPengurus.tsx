@@ -3,11 +3,7 @@ import LaporanArisan from './LaporanArisan';
 import LaporanKas from './LaporanKas';
 import { PiggyBank, Wallet } from 'lucide-react';
 
-interface LaporanPengurusProps {
-  currentUserId?: string;
-}
-
-export default function LaporanPengurus({ currentUserId }: LaporanPengurusProps) {
+export default function LaporanPengurus() {
   const [activeTab, setActiveTab] = useState<'arisan' | 'kas'>('arisan');
 
   return (
@@ -42,9 +38,9 @@ export default function LaporanPengurus({ currentUserId }: LaporanPengurusProps)
       {/* Tab Content Rendering */}
       <div className="w-full">
         {activeTab === 'arisan' ? (
-          <LaporanArisan currentUserId={currentUserId} />
+          <LaporanArisan />
         ) : (
-          <LaporanKas currentUserId={currentUserId} />
+          <LaporanKas />
         )}
       </div>
     </div>

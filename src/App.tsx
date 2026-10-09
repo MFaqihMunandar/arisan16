@@ -182,7 +182,7 @@ function Home() {
         )}
 
         {activeTab === 'laporan' && ['super_admin', 'sekretaris', 'bendahara', 'pengurus'].includes(currentRole) && (
-          <LaporanPengurus currentUserId={user?.id} />
+          <LaporanPengurus />
         )}
 
         {activeTab === 'pengaturan' && (
