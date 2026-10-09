@@ -3,7 +3,11 @@ import * as XLSX from 'xlsx';
 import { supabase } from './lib/supabase';
 import { Wallet, Printer, Download, ArrowDownLeft, ArrowUpRight } from 'lucide-react';
 
-export default function LaporanKas() {
+interface LaporanKasProps {
+  currentUserId?: string;
+}
+
+export default function LaporanKas({ currentUserId }: LaporanKasProps) {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const [selectedKasGroupId, setSelectedKasGroupId] = useState<string>('all');

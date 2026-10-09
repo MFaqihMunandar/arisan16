@@ -14,7 +14,11 @@ interface MemberUnpaidSummary {
   totalUnpaidAmount: number;
 }
 
-export default function LaporanArisan() {
+interface LaporanArisanProps {
+  currentUserId?: string;
+}
+
+export default function LaporanArisan({ currentUserId }: LaporanArisanProps) {
   const currentYear = new Date().getFullYear();
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const [selectedArisanGroupId, setSelectedArisanGroupId] = useState<string>('all');
