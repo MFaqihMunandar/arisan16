@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
 import { 
   Users, 
@@ -7,11 +7,13 @@ import {
   AlertCircle, 
   Trophy, 
   Calendar, 
-  Clock 
+  Clock, 
+  ArrowUpRight 
 } from 'lucide-react';
 
 export default function UserDashboard() {
   const [loading, setLoading] = useState<boolean>(true);
+  const [_currentUser, setCurrentUser] = useState<any>(null);
   
   // Stats
   const [joinedGroupsCount, setJoinedGroupsCount] = useState<number>(0);
@@ -35,6 +37,7 @@ export default function UserDashboard() {
         setLoading(false);
         return;
       }
+      setCurrentUser(user);
 
       // 2. Fetch User's Arisan Group Memberships
       const { data: memberships, error: memberErr } = await supabase
