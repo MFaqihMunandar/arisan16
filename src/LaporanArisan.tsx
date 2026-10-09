@@ -71,7 +71,7 @@ export default function LaporanArisan() {
       calculateUnpaidSetoran(arisanData || [], membersData || [], enrichedPayments, profileMap);
     } catch (err) {
       console.error('Error loading arisan report data:', err);
-    } fontally {
+    } finally {
       setLoading(false);
     }
   };
