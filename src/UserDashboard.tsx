@@ -16,7 +16,7 @@ interface UserDashboardProps {
 
 export default function UserDashboard({ currentUserId }: UserDashboardProps) {
   const [loading, setLoading] = useState<boolean>(true);
-  //const [currentUser, setCurrentUser] = useState<any>(null);
+  const [currentUser, setCurrentUser] = useState<any>(null);
   
   // Stats
   const [joinedGroupsCount, setJoinedGroupsCount] = useState<number>(0);
