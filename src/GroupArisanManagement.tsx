@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from './lib/supabase';
-//import GroupKasManagement from './GroupKasManagement';
 
 interface GroupArisanManagementProps {
   currentUserId?: string;
@@ -41,7 +40,7 @@ export default function GroupArisanManagement({ currentUserId }: GroupArisanMana
 
   const fetchGroups = async () => {
     setLoadingGroups(true);
-    // Fetch only active groups for management view
+    // Fetch active groups for management view
     const { data, error } = await supabase
       .from('arisan_groups')
       .select('*')
@@ -162,55 +161,97 @@ export default function GroupArisanManagement({ currentUserId }: GroupArisanMana
     }
   };
 
-  // RESET PERIODE ARISAN
+  // RESET PERIODE ARISAN: Soft-deletes current group + Creates duplicate with new code and period
   const handleResetPeriod = async (group: any) => {
+    const nextCycle = (group.cycle_count || 1) + 1;
     const confirmReset = window.confirm(
-      `Apakah Anda yakin ingin me-reset Periode untuk kelompok "${group.name}"?\n\nTindakan ini akan:\n1. Menambah Periode ke-${(group.cycle_count || 1) + 1}\n2. Mengembalikan Kocokan ke Ke-1\n3. Mengosongkan status Pemenang semua peserta.`
+      `Lakukan Reset Periode untuk "${group.name}"?\n\nTindakan ini akan:\n1. Mengarsipkan kelompok saat ini (Soft Delete).\n2. Membuat kelompok arisan baru untuk Periode Ke-${nextCycle} dengan Kode Arisan baru dan anggota yang sama.`
     );
 
     if (!confirmReset) return;
 
     setActionLoading(`reset-${group.id}`);
+    const userId = currentUserId || (await supabase.auth.getUser()).data.user?.id;
 
-    // 1. Reset group_members winning status
-    await supabase
-      .from('group_members')
-      .update({ is_winner: false })
-      .eq('group_id', group.id);
+    try {
+      // Step 1: Soft delete (archive) current arisan group
+      const { error: softDeleteErr } = await supabase
+        .from('arisan_groups')
+        .update({ is_active: false })
+        .eq('id', group.id);
 
-    // 2. Increment cycle_count and reset cycle_schedule to 1
-    const { error } = await supabase
-      .from('arisan_groups')
-      .update({
-        cycle_count: (group.cycle_count || 1) + 1,
-        cycle_schedule: '1',
-      })
-      .eq('id', group.id);
+      if (softDeleteErr) {
+        throw new Error('Gagal mengarsipkan kelompok lama: ' + softDeleteErr.message);
+      }
 
-    setActionLoading(null);
+      // Step 2: Create new arisan group with updated code and incremented period
+      const newKodeArisan = generateUniqueCode();
+      const { data: newGroup, error: createErr } = await supabase
+        .from('arisan_groups')
+        .insert([
+          {
+            code: newKodeArisan,
+            name: group.name,
+            description: group.description,
+            contribution_amount: group.contribution_amount,
+            cycle_schedule: '1',
+            cycle_count: nextCycle,
+            admin_id: userId,
+            is_active: true,
+          },
+        ])
+        .select()
+        .single();
 
-    if (error) {
-      alert('Gagal me-reset periode: ' + error.message);
-    } else {
-      alert(`Kelompok "${group.name}" berhasil di-reset ke Periode Ke-${(group.cycle_count || 1) + 1}!`);
-      fetchGroups();
+      if (createErr || !newGroup) {
+        throw new Error('Gagal membuat kelompok periode baru: ' + (createErr?.message || 'Data kosong'));
+      }
+
+      // Step 3: Fetch existing members from previous group & replicate them into new group
+      const { data: oldMembers } = await supabase
+        .from('group_members')
+        .select('user_id')
+        .eq('group_id', group.id);
+
+      if (oldMembers && oldMembers.length > 0) {
+        const newMembersPayload = oldMembers.map((m) => ({
+          group_id: newGroup.id,
+          user_id: m.user_id,
+          is_winner: false,
+        }));
+
+        const { error: memberCopyErr } = await supabase
+          .from('group_members')
+          .insert(newMembersPayload);
+
+        if (memberCopyErr) {
+          console.error('Gagal menyalin anggota:', memberCopyErr);
+        }
+      }
+
+      alert(`Berhasil me-reset "${group.name}"!\n\n- Kelompok lama telah diarsipkan.\n- Kelompok baru dibuat dengan Kode: ${newKodeArisan} (Periode Ke-${nextCycle}).`);
+      
       if (selectedGroup && selectedGroup.id === group.id) {
         closeMemberModal();
       }
+      fetchGroups();
+    } catch (err: any) {
+      alert('Terjadi kesalahan: ' + err.message);
+    } finally {
+      setActionLoading(null);
     }
   };
 
-  // SOFT DELETE (ARCHIVE) ARISAN GROUP
+  // SOFT DELETE (ARCHIVE) ARISAN GROUP ONLY
   const handleDeleteGroup = async (group: any) => {
     const confirmDelete = window.confirm(
-      `ARSIPKAN KELOMPOK ARISAN?\n\nKelompok "${group.name}" akan disembunyikan dari daftar aktif.\n\nData histori, peserta, dan transaksi akan TETAP TERSIMPAN untuk laporan tahunan (hingga 5 tahun).`
+      `ARSIPKAN KELOMPOK ARISAN?\n\nKelompok "${group.name}" akan disembunyikan dari daftar aktif.\n\nData histori, peserta, dan transaksi akan TETAP TERSIMPAN untuk laporan.`
     );
 
     if (!confirmDelete) return;
 
     setActionLoading(`delete-${group.id}`);
 
-    // Set is_active to false (Soft Delete)
     const { error } = await supabase
       .from('arisan_groups')
       .update({ is_active: false })
@@ -353,16 +394,16 @@ export default function GroupArisanManagement({ currentUserId }: GroupArisanMana
                     <button
                       onClick={() => handleResetPeriod(group)}
                       disabled={actionLoading === `reset-${group.id}`}
-                      className="py-1.5 px-2 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 text-[11px] font-medium rounded-lg transition"
+                      className="py-1.5 px-2 bg-amber-50 text-amber-700 hover:bg-amber-100 border border-amber-200 text-[11px] font-semibold rounded-lg transition"
                     >
                       {actionLoading === `reset-${group.id}` ? '...' : 'Reset Periode'}
                     </button>
                     <button
                       onClick={() => handleDeleteGroup(group)}
                       disabled={actionLoading === `delete-${group.id}`}
-                      className="py-1.5 px-2 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 text-[11px] font-medium rounded-lg transition"
+                      className="py-1.5 px-2 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 text-[11px] font-semibold rounded-lg transition"
                     >
-                      {actionLoading === `delete-${group.id}` ? '...' : 'Arsipkan (Hapus)'}
+                      {actionLoading === `delete-${group.id}` ? '...' : 'Hapus'}
                     </button>
                   </div>
                 </div>

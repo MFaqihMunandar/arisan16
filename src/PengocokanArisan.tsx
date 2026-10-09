@@ -108,7 +108,7 @@ export const PengocokanArisan: React.FC<PengocokanArisanProps> = ({
       // 1. Fetch group members
       const { data: members, error: membersError } = await supabase
         .from('group_members')
-        .select('id, user_id, has_won')
+        .select('id, user_id')
         .eq('group_id', group.id);
 
       if (membersError) throw membersError;
@@ -120,7 +120,19 @@ export const PengocokanArisan: React.FC<PengocokanArisanProps> = ({
         return;
       }
 
-      // 2. Fetch profiles
+      // 2. Fetch past winners from draw_history for this group
+      const { data: drawHistory, error: drawError } = await supabase
+        .from('draw_history')
+        .select('winner_id')
+        .eq('group_id', group.id);
+
+      if (drawError) console.error('Error fetching draw history:', drawError);
+
+      const winningUserIds = new Set<string>(
+        drawHistory?.map((d) => d.winner_id) || []
+      );
+
+      // 3. Fetch profiles
       const userIds = members.map((m) => m.user_id);
       const { data: profilesData, error: profilesError } = await supabase
         .from('profiles')
@@ -133,11 +145,11 @@ export const PengocokanArisan: React.FC<PengocokanArisanProps> = ({
       const fullMembers: GroupMember[] = members.map((m) => ({
         id: m.id,
         user_id: m.user_id,
-        has_won: m.has_won ?? false,
+        has_won: winningUserIds.has(m.user_id),
         profiles: profileMap.get(m.user_id) || { full_name: 'Tanpa Nama', email: '-' },
       }));
 
-      // 3. Fetch all setoran payments for this group to trace payment history
+      // 4. Fetch all setoran payments for this group
       const { data: allPayments, error: paymentsError } = await supabase
         .from('payments')
         .select('user_id, cycle_schedule')
@@ -165,7 +177,7 @@ export const PengocokanArisan: React.FC<PengocokanArisanProps> = ({
 
       setGroupMembers(fullMembers);
 
-      // Split 1: Eligible members (Paid current cycle AND hasn't won yet)
+      // Split 1: Eligible members (Paid current cycle AND has NOT won in draw_history)
       const eligible = fullMembers.filter(
         (m) => !m.has_won && paidThisCycleUserIds.has(m.user_id)
       );
@@ -175,7 +187,7 @@ export const PengocokanArisan: React.FC<PengocokanArisanProps> = ({
         .filter((m) => !paidThisCycleUserIds.has(m.user_id))
         .map((m) => {
           const lastPaidCycle = userLastPaidMap.get(m.user_id) || 0;
-          const gapCount = currentCycleNum - lastPaidCycle; // Gap count from last paid to current
+          const gapCount = currentCycleNum - lastPaidCycle;
           return {
             member: m,
             lastPaidCycle,
@@ -320,13 +332,15 @@ export const PengocokanArisan: React.FC<PengocokanArisanProps> = ({
     setShowWinnerModal(true);
 
     try {
-      // 1. Mark winning member in group_members
-      const { error: updateMemberError } = await supabase
-        .from('group_members')
-        .update({ has_won: true })
-        .eq('id', selectedWinner.id);
+      // 1. Record draw history (Primary winner tracking mechanism)
+      const { error: drawError } = await supabase.from('draw_history').insert({
+        group_id: selectedGroup.id,
+        winner_id: selectedWinner.user_id,
+        payout_amount: (selectedGroup.contribution_amount || 0) * (groupMembers.length || 1),
+        drawn_by: currentUserId || selectedWinner.user_id,
+      });
 
-      if (updateMemberError) throw updateMemberError;
+      if (drawError) throw drawError;
 
       // 2. Increment cycle_schedule in arisan_groups
       const { error: updateGroupError } = await supabase
@@ -356,15 +370,7 @@ export const PengocokanArisan: React.FC<PengocokanArisanProps> = ({
         },
       ]);
 
-      // 4. Record draw history
-      await supabase.from('draw_history').insert({
-        group_id: selectedGroup.id,
-        winner_id: selectedWinner.user_id,
-        payout_amount: totalPencairan,
-        drawn_by: currentUserId || selectedWinner.user_id,
-      });
-
-      // 5. Local State Sync
+      // 4. Local State Sync
       const updatedGroup = { ...selectedGroup, cycle_schedule: nextCycleNum.toString() };
       setSelectedGroup(updatedGroup);
       setActiveGroups((prev) =>
@@ -387,7 +393,6 @@ export const PengocokanArisan: React.FC<PengocokanArisanProps> = ({
     ? groupMembers.length 
     : (selectedGroup?.cycle_count || 0);
 
-  // Arisan selesai jika urutan kocokan melebihi total anggota kelompok
   const isArisanSelesai = totalMembersCount > 0 && currentCycleNum > totalMembersCount;
 
   const filteredPaidMembers = groupMembers.filter((m) => {
@@ -458,7 +463,6 @@ export const PengocokanArisan: React.FC<PengocokanArisanProps> = ({
               />
             </div>
 
-            {/* Kondisional Tombol Aksi */}
             {isArisanSelesai ? (
               <div className="mt-4 flex flex-col items-center gap-3 w-full max-w-xs">
                 <button
@@ -577,7 +581,7 @@ export const PengocokanArisan: React.FC<PengocokanArisanProps> = ({
               </div>
             </div>
 
-            {/* Unpaid Table with Gap Count */}
+            {/* Unpaid Table */}
             <div className="bg-white p-5 rounded-2xl shadow-sm border border-gray-200 space-y-4">
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b pb-3">
                 <h3 className="font-bold text-gray-800 flex items-center gap-2">

@@ -13,6 +13,7 @@ const generateUniqueCode = () => {
 
 export default function GroupKasManagement({ currentUserId }: GroupKasManagementProps) {
   const [groups, setGroups] = useState<any[]>([]);
+  const [balances, setBalances] = useState<{ [groupId: string]: number }>({});
   const [loadingGroups, setLoadingGroups] = useState(true);
 
   // Group Creation/Edit Modal
@@ -28,21 +29,47 @@ export default function GroupKasManagement({ currentUserId }: GroupKasManagement
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
-  const fetchGroups = async () => {
+  const fetchGroupsAndBalances = async () => {
     setLoadingGroups(true);
-    const { data, error } = await supabase
+
+    // 1. Fetch Kas Groups
+    const { data: kasData, error: kasErr } = await supabase
       .from('kas_groups')
       .select('*')
-      .order('created_at', { ascending: false });
+      .order('created_at', { ascending: true });
 
-    if (!error && data) {
-      setGroups(data);
+    if (!kasErr && kasData) {
+      setGroups(kasData);
+
+      // 2. Fetch all payment entries (including category) grouped by kas_group_id
+      const { data: payData, error: payErr } = await supabase
+        .from('payments')
+        .select('kas_group_id, amount, category');
+
+      if (!payErr && payData) {
+        const balanceMap: { [key: string]: number } = {};
+        
+        payData.forEach((payment) => {
+          if (payment.kas_group_id) {
+            const rawAmount = Math.abs(Number(payment.amount) || 0);
+            
+            // Check category: subtract if withdrawal, add if deposit
+            if (payment.category === 'penarikan_kas') {
+              balanceMap[payment.kas_group_id] = (balanceMap[payment.kas_group_id] || 0) - rawAmount;
+            } else {
+              balanceMap[payment.kas_group_id] = (balanceMap[payment.kas_group_id] || 0) + rawAmount;
+            }
+          }
+        });
+
+        setBalances(balanceMap);
+      }
     }
     setLoadingGroups(false);
   };
 
   useEffect(() => {
-    fetchGroups();
+    fetchGroupsAndBalances();
   }, []);
 
   const openCreateModal = () => {
@@ -92,7 +119,7 @@ export default function GroupKasManagement({ currentUserId }: GroupKasManagement
         setErrorMsg(error.message);
       } else {
         setIsModalOpen(false);
-        fetchGroups();
+        fetchGroupsAndBalances();
       }
     } else {
       const { error } = await supabase.from('kas_groups').insert([
@@ -100,7 +127,7 @@ export default function GroupKasManagement({ currentUserId }: GroupKasManagement
           code: code,
           name: name,
           description: description,
-		  contribution_amount: 0,
+          contribution_amount: 0,
           admin_id: userId,
         },
       ]);
@@ -111,32 +138,86 @@ export default function GroupKasManagement({ currentUserId }: GroupKasManagement
         setErrorMsg(error.message);
       } else {
         setIsModalOpen(false);
-        fetchGroups();
+        fetchGroupsAndBalances();
       }
     }
   };
 
   const handleDeleteGroup = async (group: any) => {
+    const isMainKas = group.name.toLowerCase().includes('kas umum') || group.code === 'KAS-20260908-CS2U';
+    if (isMainKas) {
+      alert('Kas Utama (Kas Umum) tidak dapat dihapus!');
+      return;
+    }
+
+    const currentSaldo = balances[group.id] || 0;
+
     const confirmDelete = window.confirm(
-      `HAPUS KELOMPOK KAS?\n\nKelompok "${group.name}" akan dihapus permanen.`
+      `HAPUS KELOMPOK KAS?\n\nKelompok "${group.name}" akan dihapus.${currentSaldo > 0 ? ` Sisa saldo (Rp ${currentSaldo.toLocaleString('id-ID')}) akan otomatis ditransfer ke Kas Umum.` : ''}`
     );
 
     if (!confirmDelete) return;
 
     setActionLoading(`delete-${group.id}`);
+    const userId = currentUserId || (await supabase.auth.getUser()).data.user?.id;
 
-    const { error } = await supabase
-      .from('kas_groups')
-      .delete()
-      .eq('id', group.id);
+    try {
+      // 1. Fetch Kas Umum
+      const { data: mainKas, error: mainKasErr } = await supabase
+        .from('kas_groups')
+        .select('id, name')
+        .ilike('name', '%Kas Umum%')
+        .limit(1)
+        .single();
 
-    setActionLoading(null);
+      if (mainKasErr || !mainKas) {
+        alert('Gagal menemukan Kas Umum sebagai tujuan transfer saldo.');
+        setActionLoading(null);
+        return;
+      }
 
-    if (error) {
-      alert('Gagal menghapus kelompok: ' + error.message);
-    } else {
-      alert(`Kelompok "${group.name}" telah dihapus.`);
-      fetchGroups();
+      // 2. Transfer remaining positive balance if > 0
+      if (currentSaldo > 0) {
+        const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const randomSuffix = Math.random().toString(36).substring(2, 6).toUpperCase();
+        const receiptNum = `TRF-${dateStr}-${randomSuffix}`;
+
+        const { error: transferErr } = await supabase.from('payments').insert([
+          {
+            receipt_number: receiptNum,
+            kas_group_id: mainKas.id,
+            user_id: userId,
+            amount: Math.abs(currentSaldo), // Stored as positive
+            category: 'kas_transfer',
+            description: `Transfer sisa saldo dari penutupan kas "${group.name}"`,
+            created_at: new Date().toISOString()
+          }
+        ]);
+
+        if (transferErr) {
+          alert('Gagal mentransfer saldo ke Kas Umum: ' + transferErr.message);
+          setActionLoading(null);
+          return;
+        }
+      }
+
+      // 3. Delete group
+      const { error: deleteErr } = await supabase
+        .from('kas_groups')
+        .delete()
+        .eq('id', group.id);
+
+      setActionLoading(null);
+
+      if (deleteErr) {
+        alert('Gagal menghapus kelompok kas: ' + deleteErr.message);
+      } else {
+        alert(`Kelompok "${group.name}" berhasil dihapus.${currentSaldo > 0 ? ` Sisa saldo (Rp ${currentSaldo.toLocaleString('id-ID')}) telah ditransfer ke Kas Umum.` : ''}`);
+        fetchGroupsAndBalances();
+      }
+    } catch (err: any) {
+      alert('Terjadi kesalahan: ' + err.message);
+      setActionLoading(null);
     }
   };
 
@@ -163,36 +244,60 @@ export default function GroupKasManagement({ currentUserId }: GroupKasManagement
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {groups.map((group) => (
-            <div key={group.id} className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow transition flex flex-col justify-between">
-              <div>
-                <div className="flex justify-between items-start mb-2 gap-1 flex-wrap">
-                  <span className="text-xs font-mono font-bold bg-green-50 text-green-600 px-2 py-1 rounded">
-                    {group.code || 'KAS-GROUP'}
-                  </span>
+          {groups.map((group) => {
+            const isMainKas = group.name?.toLowerCase().includes('kas umum') || group.code === 'KAS-20260908-CS2U';
+            const saldo = balances[group.id] || 0;
+
+            return (
+              <div key={group.id} className="bg-white border border-gray-200 rounded-xl p-5 shadow-sm hover:shadow transition flex flex-col justify-between">
+                <div>
+                  <div className="flex justify-between items-start mb-2 gap-1 flex-wrap">
+                    <span className="text-xs font-mono font-bold bg-green-50 text-green-600 px-2 py-1 rounded">
+                      {group.code || 'KAS-GROUP'}
+                    </span>
+                    {isMainKas && (
+                      <span className="text-xs font-bold bg-blue-50 text-blue-600 px-2 py-0.5 rounded-full">
+                        Kas Utama
+                      </span>
+                    )}
+                  </div>
+
+                  <h3 className="font-bold text-gray-800 text-lg mb-1">{group.name}</h3>
+                  <p className="text-sm text-gray-600 mb-3 line-clamp-2">{group.description}</p>
+
+                  {/* Real-time Saldo Indicator */}
+                  <div className="mb-4 p-2.5 bg-gray-50 rounded-lg border border-gray-100 flex justify-between items-center">
+                    <span className="text-xs text-gray-500 font-medium">Saldo Kas Saat Ini:</span>
+                    <span className={`text-sm font-bold ${saldo < 0 ? 'text-red-600' : 'text-emerald-600'}`}>
+                      Rp {saldo.toLocaleString('id-ID')}
+                    </span>
+                  </div>
                 </div>
 
-                <h3 className="font-bold text-gray-800 text-lg mb-1">{group.name}</h3>
-                <p className="text-sm text-gray-600 mb-4 line-clamp-3">{group.description}</p>
-              </div>
+                <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-100">
+                  <button
+                    onClick={() => openEditModal(group)}
+                    className="py-1.5 px-2 bg-gray-100 text-gray-700 hover:bg-gray-200 text-xs font-medium rounded-lg transition"
+                  >
+                    Edit
+                  </button>
 
-              <div className="grid grid-cols-2 gap-2 pt-3 border-t border-gray-100">
-                <button
-                  onClick={() => openEditModal(group)}
-                  className="py-1.5 px-2 bg-gray-100 text-gray-700 hover:bg-gray-200 text-xs font-medium rounded-lg transition"
-                >
-                  Edit
-                </button>
-                <button
-                  onClick={() => handleDeleteGroup(group)}
-                  disabled={actionLoading === `delete-${group.id}`}
-                  className="py-1.5 px-2 bg-red-50 text-red-600 hover:bg-red-100 border border-red-200 text-xs font-medium rounded-lg transition"
-                >
-                  {actionLoading === `delete-${group.id}` ? '...' : 'Hapus'}
-                </button>
+                  <button
+                    onClick={() => handleDeleteGroup(group)}
+                    disabled={isMainKas || actionLoading === `delete-${group.id}`}
+                    title={isMainKas ? "Kas Umum tidak dapat dihapus" : ""}
+                    className={`py-1.5 px-2 text-xs font-medium rounded-lg transition ${
+                      isMainKas
+                        ? 'bg-gray-100 text-gray-400 border border-gray-200 cursor-not-allowed opacity-60'
+                        : 'bg-red-50 text-red-600 hover:bg-red-100 border border-red-200'
+                    }`}
+                  >
+                    {actionLoading === `delete-${group.id}` ? '...' : 'Hapus'}
+                  </button>
+                </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
 

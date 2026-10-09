@@ -2,14 +2,16 @@ import { Routes, Route, Link, Navigate, useNavigate } from 'react-router-dom';
 import { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 import { User } from '@supabase/supabase-js';
-import { UserProfile } from './types/database';
+import { UserProfile, UserRole } from './types/database';
 import Daftar from './Daftar';
 import Masuk from './Masuk';
 import AdminUserManagement from './AdminUserManagement';
 import GroupArisanManagement from './GroupManagementPage';
 import CatatanKasAndPayment from './CatatanKasAndPayment';
 import { PengocokanArisan } from './PengocokanArisan';
-import SidebarLayout from './SidebarLayout';
+import LaporanPengurus from './LaporanPengurus';
+import SidebarLayout, { TabType } from './SidebarLayout';
+import UserDashboard from './UserDashboard';
 
 const INACTIVITY_LIMIT_MS = 30 * 60 * 1000;
 
@@ -17,7 +19,7 @@ function Home() {
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [activeTab, setActiveTab] = useState<'kelola_pengguna' | 'grup_arisan' | 'kas' | 'pengocokan' | 'laporan' | 'pengaturan'>('kelola_pengguna');
+  const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const navigate = useNavigate();
 
@@ -48,7 +50,15 @@ function Home() {
       .single();
 
     if (!error && data) {
-      setProfile(data as UserProfile);
+      const userProfile = data as UserProfile;
+      setProfile(userProfile);
+
+      // Jika role adalah super_admin, defaultkan ke 'kelola_pengguna', role lainnya ke 'dashboard'
+      if (userProfile.role === 'super_admin') {
+        setActiveTab('kelola_pengguna');
+      } else {
+        setActiveTab('dashboard');
+      }
     }
   };
 
@@ -106,7 +116,6 @@ function Home() {
     );
   }
 
-  // Unauthenticated view
   if (!user) {
     return (
       <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 p-4">
@@ -132,7 +141,8 @@ function Home() {
     );
   }
 
-  // Authenticated Dashboard
+  const currentRole: UserRole = profile?.role || 'anggota';
+
   return (
     <SidebarLayout 
       user={user} 
@@ -141,35 +151,41 @@ function Home() {
       activeTab={activeTab}
       setActiveTab={setActiveTab}
     >
-      {/* Header Card */}
       <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 w-full mb-6">
         <h2 className="text-2xl font-bold text-gray-800">
           Selamat datang, {profile?.full_name || 'Pengguna'}!
         </h2>
         <p className="text-xs font-semibold text-gray-500 mt-1 uppercase tracking-wider">
-          {profile?.role ? profile.role.replace('_', ' ') : 'Anggota'}
+          {currentRole.replace('_', ' ')}
         </p>
       </div>
 
-      {/* Tab Switching Area */}
       <div className="w-full">
-        {activeTab === 'kelola_pengguna' && profile?.role === 'super_admin' && (
+        {activeTab === 'dashboard' && (
+          <UserDashboard currentUserId={user?.id} />
+        )}
+
+        {activeTab === 'kelola_pengguna' && currentRole === 'super_admin' && (
           <AdminUserManagement />
         )}
 
-        {activeTab === 'grup_arisan' && (
+        {activeTab === 'grup_arisan' && ['super_admin', 'sekretaris', 'bendahara', 'pengurus'].includes(currentRole) && (
           <GroupArisanManagement currentUserId={user?.id} />
         )}
 
-        {activeTab === 'kas' && (
+        {activeTab === 'kas' && ['super_admin', 'bendahara'].includes(currentRole) && (
           <CatatanKasAndPayment currentUserId={user?.id} />
         )}
 
-        {activeTab === 'pengocokan' && (
+        {activeTab === 'pengocokan' && ['super_admin', 'sekretaris'].includes(currentRole) && (
           <PengocokanArisan currentUserId={user?.id} onNavigateToGroupManagement={() => setActiveTab('grup_arisan')} />
         )}
 
-        {['laporan', 'pengaturan'].includes(activeTab) && (
+        {activeTab === 'laporan' && ['super_admin', 'sekretaris', 'bendahara', 'pengurus'].includes(currentRole) && (
+          <LaporanPengurus currentUserId={user?.id} />
+        )}
+
+        {activeTab === 'pengaturan' && (
           <div className="bg-white p-8 rounded-xl border border-gray-200 text-center text-gray-500">
             Fitur sedang dalam pengembangan.
           </div>

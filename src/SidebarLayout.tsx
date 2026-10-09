@@ -9,11 +9,12 @@ import {
   Settings, 
   LogOut, 
   ShieldCheck,
+  LayoutDashboard,
   Menu,
   X
 } from 'lucide-react';
 
-export type TabType = 'kelola_pengguna' | 'grup_arisan' | 'kas' | 'pengocokan' | 'laporan' | 'pengaturan';
+export type TabType = 'kelola_pengguna' | 'grup_arisan' | 'kas' | 'pengocokan' | 'laporan' | 'dashboard' | 'pengaturan';
 
 interface SidebarLayoutProps {
   user: User | null;
@@ -23,6 +24,59 @@ interface SidebarLayoutProps {
   setActiveTab: (tab: TabType) => void;
   children: React.ReactNode;
 }
+
+interface MenuItem {
+  id: TabType;
+  label: string;
+  icon: React.ElementType;
+  roles: UserRole[];
+}
+
+// Konfigurasi Hak Akses Menu berdasarkan Role
+const NAV_ITEMS: MenuItem[] = [
+  {
+    id: 'dashboard',
+    label: 'Dashboard',
+    icon: LayoutDashboard,
+    roles: ['super_admin', 'sekretaris', 'bendahara', 'pengurus', 'anggota'],
+  },
+  {
+    id: 'kelola_pengguna',
+    label: 'Kelola Pengguna',
+    icon: ShieldCheck,
+    roles: ['super_admin'],
+  },
+  {
+    id: 'grup_arisan',
+    label: 'Grup Arisan',
+    icon: Users,
+    roles: ['super_admin', 'sekretaris', 'bendahara', 'pengurus'],
+  },
+  {
+    id: 'kas',
+    label: 'Catatan Kas & Payment',
+    icon: Wallet,
+    roles: ['super_admin', 'bendahara'],
+  },
+  {
+    id: 'pengocokan',
+    label: 'Pengocokan Arisan',
+    icon: Shuffle,
+    roles: ['super_admin', 'sekretaris'],
+  },
+  {
+    id: 'laporan',
+    label: 'Laporan Pengurus',
+    icon: FileText,
+    roles: ['super_admin', 'sekretaris', 'bendahara', 'pengurus'],
+  },
+  {
+    id: 'pengaturan',
+    label: 'Pengaturan Profil',
+    icon: Settings,
+    roles: ['super_admin', 'sekretaris', 'bendahara', 'pengurus', 'anggota'],
+  },
+];
 
 export default function SidebarLayout({ 
   user, 
@@ -36,7 +90,7 @@ export default function SidebarLayout({
 
   const handleTabClick = (tab: TabType) => {
     setActiveTab(tab);
-    setIsMobileOpen(false); // Close mobile menu after selecting tab
+    setIsMobileOpen(false);
   };
 
   const getRoleBadge = (role?: UserRole) => {
@@ -54,6 +108,11 @@ export default function SidebarLayout({
     }
   };
 
+  const currentRole: UserRole = profile?.role || 'anggota';
+
+  // Filter daftar menu sesuai role user yang sedang aktif
+  const visibleNavItems = NAV_ITEMS.filter((item) => item.roles.includes(currentRole));
+
   const initials = profile?.full_name
     ? profile.full_name
         .split(' ')
@@ -68,9 +127,11 @@ export default function SidebarLayout({
       {/* Mobile Top Navigation Bar */}
       <div className="md:hidden bg-white border-b border-gray-200 px-4 py-3 flex items-center justify-between z-20">
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-extrabold text-base shadow">
-            A
-          </div>
+          <img 
+			src="./logo_small.png" 
+			alt="Logo Arisan" 
+			className="w-8 h-8 object-contain rounded-lg shadow-sm" 
+		  />
           <span className="font-bold text-base text-gray-900">Arisan 1/6</span>
         </div>
         <button
@@ -98,16 +159,18 @@ export default function SidebarLayout({
       >
         {/* App Title Header (Desktop) */}
         <div className="p-4 border-b border-gray-100 hidden md:flex items-center gap-3">
-          <div className="w-9 h-9 bg-blue-600 rounded-lg flex items-center justify-center text-white font-extrabold text-lg shadow">
-            A
-          </div>
+          <img 
+			src="./logo_small.png" 
+			alt="Logo Arisan" 
+			className="w-9 h-9 object-contain rounded-lg shadow-sm" 
+		  />
           <div>
             <h1 className="font-bold text-lg text-gray-900 leading-tight">Arisan 1/6</h1>
             <p className="text-xs text-gray-500">Manajemen Tabungan</p>
           </div>
         </div>
 
-        {/* Profile Section (Fixed on Top) */}
+        {/* Profile Section */}
         {user && (
           <div className="p-4 bg-gray-50 border-b border-gray-100 flex items-start gap-3">
             <div className="w-11 h-11 rounded-full bg-blue-500 text-white flex-shrink-0 flex items-center justify-center font-bold text-base shadow-sm ring-2 ring-blue-100 mt-0.5">
@@ -123,88 +186,31 @@ export default function SidebarLayout({
           </div>
         )}
 
-        {/* Scrollable Navigation Menu */}
+        {/* Dynamic Navigation Menu */}
         <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-          {profile?.role === 'super_admin' && (
-            <button 
-              onClick={() => handleTabClick('kelola_pengguna')}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition ${
-                activeTab === 'kelola_pengguna'
-                  ? 'bg-blue-50 text-blue-600 font-semibold'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              <ShieldCheck className={`w-4 h-4 ${activeTab === 'kelola_pengguna' ? 'text-blue-600' : 'text-gray-500'}`} />
-              Kelola Pengguna
-            </button>
-          )}
-
-          <button
-            onClick={() => handleTabClick('grup_arisan')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition ${
-              activeTab === 'grup_arisan'
-                ? 'bg-blue-50 text-blue-600 font-semibold'
-                : 'text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            <Users className={`w-4 h-4 ${activeTab === 'grup_arisan' ? 'text-blue-600' : 'text-gray-500'}`} />
-            Grup Arisan
-          </button>
-
-          <button 
-            onClick={() => handleTabClick('kas')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition ${
-              activeTab === 'kas'
-                ? 'bg-blue-50 text-blue-600 font-semibold'
-                : 'text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            <Wallet className={`w-4 h-4 ${activeTab === 'kas' ? 'text-blue-600' : 'text-gray-500'}`} />
-            Catatan Kas & Payment
-          </button>
-
-          <button 
-            onClick={() => handleTabClick('pengocokan')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition ${
-              activeTab === 'pengocokan'
-                ? 'bg-blue-50 text-blue-600 font-semibold'
-                : 'text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            <Shuffle className={`w-4 h-4 ${activeTab === 'pengocokan' ? 'text-blue-600' : 'text-gray-500'}`} />
-            Pengocokan Arisan
-          </button>
-
-          <button 
-            onClick={() => handleTabClick('laporan')}
-            className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition ${
-              activeTab === 'laporan'
-                ? 'bg-blue-50 text-blue-600 font-semibold'
-                : 'text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            <FileText className={`w-4 h-4 ${activeTab === 'laporan' ? 'text-blue-600' : 'text-gray-500'}`} />
-            Laporan Pengurus
-          </button>
-
-          <div className="pt-2 border-t border-gray-100 mt-2">
-            <button 
-              onClick={() => handleTabClick('pengaturan')}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition ${
-                activeTab === 'pengaturan'
-                  ? 'bg-blue-50 text-blue-600 font-semibold'
-                  : 'text-gray-700 hover:bg-gray-100'
-              }`}
-            >
-              <Settings className={`w-4 h-4 ${activeTab === 'pengaturan' ? 'text-blue-600' : 'text-gray-500'}`} />
-              Pengaturan Profil
-            </button>
-          </div>
+          {visibleNavItems.map((item) => {
+            const Icon = item.icon;
+            const isActive = activeTab === item.id;
+            return (
+              <button
+                key={item.id}
+                onClick={() => handleTabClick(item.id)}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 text-sm font-medium rounded-lg transition ${
+                  isActive
+                    ? 'bg-blue-50 text-blue-600 font-semibold'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+              >
+                <Icon className={`w-4 h-4 ${isActive ? 'text-blue-600' : 'text-gray-500'}`} />
+                {item.label}
+              </button>
+            );
+          })}
         </nav>
 
-        {/* Logout (Fixed on Bottom) */}
+        {/* Logout & Footer Credits */}
         {user && (
-          <div className="p-3 border-t border-gray-200">
+          <div className="p-3 border-t border-gray-200 space-y-3">
             <button
               onClick={handleLogout}
               className="w-full flex items-center justify-center gap-2 px-3 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50 rounded-lg transition border border-red-200"
@@ -212,6 +218,21 @@ export default function SidebarLayout({
               <LogOut className="w-4 h-4" />
               Keluar (Logout)
             </button>
+
+            <div className="text-center pt-1">
+              <p className="text-xs text-gray-500">
+                Developed by<br/>{' '}
+                <span className="font-semibold text-gray-700">Mohammad Faqih Munandar</span>.
+              </p>
+              <a
+                href="https://mfaqihmunandar.github.io/mohammadfaqihmunandar/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-blue-600 hover:text-blue-800 font-medium hover:underline inline-block mt-0.5"
+              >
+                Visit His page?
+              </a>
+            </div>
           </div>
         )}
       </aside>
