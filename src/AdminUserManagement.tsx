@@ -55,30 +55,32 @@ export default function AdminUserManagement() {
   };
 
   const handleDeleteUser = async (userId: string, name: string, role: UserRole) => {
-    if (userId === currentUserId) {
-      alert('Anda tidak dapat menghapus akun Anda sendiri.');
-      return;
-    }
+  if (userId === currentUserId) {
+    alert('Anda tidak dapat menghapus akun Anda sendiri.');
+    return;
+  }
 
-    const superAdminCount = users.filter((u) => u.role === 'super_admin').length;
-    if (role === 'super_admin' && superAdminCount <= 1) {
-      alert('Gagal: Tidak dapat menghapus Super Admin terakhir.');
-      return;
-    }
+  const superAdminCount = users.filter((u) => u.role === 'super_admin').length;
+  if (role === 'super_admin' && superAdminCount <= 1) {
+    alert('Gagal: Tidak dapat menghapus Super Admin terakhir.');
+    return;
+  }
 
-    if (!confirm(`Apakah Anda yakin ingin menghapus pengguna "${name}"?`)) return;
+  if (!confirm(`Apakah Anda yakin ingin menghapus pengguna "${name}"?`)) return;
 
-    // Call RPC Function instead of direct DELETE
-    const { error } = await supabase.rpc('delete_user_by_admin', {
-      target_user_id: userId,
-    });
+  // Call the database RPC function to delete from auth.users and public.profiles
+  const { error } = await supabase.rpc('delete_user_by_admin', {
+    target_user_id: userId,
+  });
 
-    if (error) {
-      alert('Gagal menghapus pengguna: ' + error.message);
-    } else {
-      fetchAllProfiles();
-    }
-  };
+  if (error) {
+    console.error('Delete User Error:', error);
+    alert('Gagal menghapus pengguna: ' + error.message + ' (Details: ' + (error.details || error.hint || 'None') + ')');
+  } else {
+    alert('Pengguna berhasil dihapus!');
+    fetchAllProfiles();
+  }
+};
 
   const getRoleBadgeColor = (role: UserRole) => {
     switch (role) {

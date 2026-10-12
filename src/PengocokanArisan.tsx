@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { supabase } from './lib/supabase';
 import { Sparkles, Trophy, RotateCw, CheckCircle2, XCircle, Award, Trash2, Search, AlertCircle } from 'lucide-react';
 
@@ -158,7 +158,6 @@ export const PengocokanArisan: React.FC<PengocokanArisanProps> = ({
 
       if (paymentsError) throw paymentsError;
 
-      // Map last paid cycle per user and track current paid users
       const paidThisCycleUserIds = new Set<string>();
       const userLastPaidMap = new Map<string, number>();
 
@@ -177,12 +176,10 @@ export const PengocokanArisan: React.FC<PengocokanArisanProps> = ({
 
       setGroupMembers(fullMembers);
 
-      // Split 1: Eligible members (Paid current cycle AND has NOT won in draw_history)
       const eligible = fullMembers.filter(
         (m) => !m.has_won && paidThisCycleUserIds.has(m.user_id)
       );
 
-      // Split 2: Unpaid members + gap calculation
       const unpaidInfoList: UnpaidMemberInfo[] = fullMembers
         .filter((m) => !paidThisCycleUserIds.has(m.user_id))
         .map((m) => {
@@ -314,25 +311,36 @@ export const PengocokanArisan: React.FC<PengocokanArisanProps> = ({
         requestAnimationFrame(animateSpin);
       } else {
         setIsSpinning(false);
-        finalizeWinner(selectedWinner);
+        setWinner(selectedWinner);
+        setShowWinnerModal(true); // Show modal without saving to DB yet
       }
     };
 
     requestAnimationFrame(animateSpin);
   };
 
-  const finalizeWinner = async (selectedWinner: GroupMember) => {
+  // Called when user clicks "Pilih Pemenang" in the modal
+  const handleConfirmWinner = async () => {
+    if (!winner || !selectedGroup) return;
+    setShowWinnerModal(false);
+    await saveWinnerToDatabase(winner);
+  };
+
+  // Called when user clicks "Batal / Kocok Ulang" in the modal
+  const handleCancelWinner = () => {
+    setShowWinnerModal(false);
+    setWinner(null);
+  };
+
+  const saveWinnerToDatabase = async (selectedWinner: GroupMember) => {
     if (!selectedGroup) return;
 
     const currentCycleStr = selectedGroup.cycle_schedule || '1';
     const currentCycleNum = parseInt(currentCycleStr, 10) || 1;
     const nextCycleNum = currentCycleNum + 1;
 
-    setWinner(selectedWinner);
-    setShowWinnerModal(true);
-
     try {
-      // 1. Record draw history (Primary winner tracking mechanism)
+      // 1. Record draw history
       const { error: drawError } = await supabase.from('draw_history').insert({
         group_id: selectedGroup.id,
         winner_id: selectedWinner.user_id,
@@ -660,6 +668,7 @@ export const PengocokanArisan: React.FC<PengocokanArisanProps> = ({
         </div>
       )}
 
+      {/* Winner Modal with Confirmation Actions */}
       {showWinnerModal && winner && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm animate-fadeIn">
           <div className="bg-white rounded-3xl p-8 max-w-md w-full text-center shadow-2xl border-4 border-yellow-400 relative overflow-hidden transform animate-bounce-short">
@@ -673,9 +682,9 @@ export const PengocokanArisan: React.FC<PengocokanArisanProps> = ({
 
               <div>
                 <span className="text-xs font-black uppercase tracking-widest text-yellow-600 bg-yellow-100 px-3 py-1 rounded-full">
-                  PEMENANG KOCOKAN #{currentCycle}
+                  HASIL KOCOKAN #{currentCycle}
                 </span>
-                <h2 className="text-3xl font-black text-gray-900 mt-2">🎉 SELAMAT! 🎉</h2>
+                <h2 className="text-2xl font-black text-gray-900 mt-2">🎉 PEMENANG TERPILIH 🎉</h2>
               </div>
 
               <div className="py-4 bg-gradient-to-r from-yellow-50 via-amber-50 to-yellow-50 rounded-2xl border border-yellow-200">
@@ -683,12 +692,21 @@ export const PengocokanArisan: React.FC<PengocokanArisanProps> = ({
                 <p className="text-xs font-medium text-gray-500 mt-1">{winner.profiles?.email}</p>
               </div>
 
-              <button
-                onClick={() => setShowWinnerModal(false)}
-                className="w-full py-3.5 bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 text-slate-900 font-extrabold rounded-xl shadow-lg transition-all active:scale-95"
-              >
-                TUTUP & SIMPAN!
-              </button>
+              {/* Action Buttons: Cancel / Re-spin vs Confirm Winner */}
+              <div className="grid grid-cols-2 gap-3 pt-2">
+                <button
+                  onClick={handleCancelWinner}
+                  className="py-3 px-4 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold rounded-xl text-xs transition-all active:scale-95"
+                >
+                  BATAL / KOCOK ULANG
+                </button>
+                <button
+                  onClick={handleConfirmWinner}
+                  className="py-3 px-4 bg-gradient-to-r from-yellow-400 to-amber-500 hover:from-yellow-500 hover:to-amber-600 text-slate-900 font-extrabold rounded-xl text-xs shadow-lg transition-all active:scale-95"
+                >
+                  PILIH PEMENANG
+                </button>
+              </div>
             </div>
           </div>
         </div>
