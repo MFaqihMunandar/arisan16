@@ -6,8 +6,9 @@ import {
   CheckCircle, 
   AlertCircle, 
   Trophy, 
-  Calendar, 
-  Clock 
+  Clock,
+  Layers,
+  Receipt
 } from 'lucide-react';
 
 interface UserDashboardProps {
@@ -22,9 +23,9 @@ export default function UserDashboard({ currentUserId }: UserDashboardProps) {
   const [totalPaidAmount, setTotalPaidAmount] = useState<number>(0);
   const [unpaidCount, setUnpaidCount] = useState<number>(0);
 
-  // Lists
+  // Data State
   const [myArisanGroups, setMyArisanGroups] = useState<any[]>([]);
-  const [myPayments, setMyPayments] = useState<any[]>([]);
+  const [paymentsByGroup, setPaymentsByGroup] = useState<{ [groupId: string]: any[] }>({});
 
   useEffect(() => {
     fetchUserDashboardData();
@@ -33,7 +34,7 @@ export default function UserDashboard({ currentUserId }: UserDashboardProps) {
   const fetchUserDashboardData = async () => {
     setLoading(true);
     try {
-      // 1. Get Target User ID (Prefer currentUserId from props if available)
+      // 1. Dapatkan User ID Target
       let targetUserId = currentUserId;
 
       if (!targetUserId) {
@@ -45,29 +46,29 @@ export default function UserDashboard({ currentUserId }: UserDashboardProps) {
         targetUserId = user.id;
       }
 
-      // 2. Fetch User's Arisan Group Memberships
+      // 2. Fetch Keanggotaan Kelompok Arisan (group_members -> arisan_groups)
       const { data: memberships, error: memberErr } = await supabase
         .from('group_members')
         .select(`
           id,
           group_id,
-          member_number,
           is_winner,
+          has_won,
           arisan_groups (
             id,
-            group_code,
-            group_name,
-            nominal,
+            code,
+            name,
+            contribution_amount,
             cycle_schedule,
             cycle_count,
-            status
+            is_active
           )
         `)
         .eq('user_id', targetUserId);
 
       if (memberErr) throw memberErr;
 
-      // 3. Fetch User's Payments History (Both Arisan and Kas)
+      // 3. Fetch Riwayat Pembayaran User dari tabel payments
       const { data: paymentsData, error: payErr } = await supabase
         .from('payments')
         .select('*')
@@ -76,42 +77,51 @@ export default function UserDashboard({ currentUserId }: UserDashboardProps) {
 
       if (payErr) throw payErr;
 
-      // Calculate Totals & Group Details
       const userPayments = paymentsData || [];
       const totalPaid = userPayments.reduce((sum, p) => sum + Math.abs(Number(p.amount) || 0), 0);
       setTotalPaidAmount(totalPaid);
-      setMyPayments(userPayments);
 
-      // Process Arisan Groups
+      // Grouping Transaksi berdasarkan group_id
+      const groupedPayments: { [groupId: string]: any[] } = {};
+      userPayments.forEach((p) => {
+        const key = p.group_id || 'umum';
+        if (!groupedPayments[key]) groupedPayments[key] = [];
+        groupedPayments[key].push(p);
+      });
+      setPaymentsByGroup(groupedPayments);
+
+      // Process Kelompok Arisan & Status Tagihan
       let pendingSetoranCount = 0;
       const formattedGroups = (memberships || []).map((m: any) => {
         const group = m.arisan_groups;
-        const currentCycle = parseInt(group?.cycle_schedule || '1');
+        if (!group) return null;
+
+        const currentCycle = String(group?.cycle_schedule || '1');
         
-        // Check if user has paid for current cycle
+        // Cek apakah user sudah membayar setoran pada ronde berjalan ini
         const hasPaidCurrentCycle = userPayments.some(
           (p) => p.group_id === group?.id && 
                  p.category === 'setoran_arisan' && 
-                 p.cycle_schedule === group?.cycle_schedule
+                 String(p.cycle_schedule) === currentCycle
         );
 
-        if (!hasPaidCurrentCycle && group?.status === 'aktif') {
+        if (!hasPaidCurrentCycle && group?.is_active) {
           pendingSetoranCount += 1;
         }
 
         return {
           id: group?.id,
           memberId: m.id,
-          groupCode: group?.group_code,
-          groupName: group?.group_name,
-          nominal: group?.nominal || 0,
+          groupCode: group?.code || 'ARS',
+          groupName: group?.name || 'Tanpa Nama',
+          nominal: Number(group?.contribution_amount) || 0,
           currentCycle: currentCycle,
           totalCycles: group?.cycle_count || 0,
-          isWinner: m.is_winner,
+          isWinner: m.is_winner || m.has_won,
           hasPaidCurrentCycle: hasPaidCurrentCycle,
-          status: group?.status,
+          isActive: group?.is_active,
         };
-      });
+      }).filter(Boolean);
 
       setJoinedGroupsCount(formattedGroups.length);
       setUnpaidCount(pendingSetoranCount);
@@ -138,19 +148,18 @@ export default function UserDashboard({ currentUserId }: UserDashboardProps) {
       <div className="border-b border-gray-200 pb-4">
         <h2 className="text-2xl font-extrabold text-gray-900 flex items-center gap-2">
           <Users className="w-7 h-7 text-indigo-600" />
-          Dashboard Anggota
+          Dashboard Saya
         </h2>
         <p className="text-sm text-gray-500 mt-1">
-          Pantau status keikutsertaan arisan, jadwal setoran, dan riwayat pembayaran Anda.
+          Informasi kelompok arisan, tagihan berjalan, dan rincian setoran Anda.
         </p>
       </div>
 
-      {/* KPI Overview Cards */}
+      {/* Overview Stats Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        {/* Joined Groups */}
         <div className="bg-white border border-gray-200 p-5 rounded-2xl shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Arisan Diikuti</span>
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Arisan Diikuti[cite: 1]</span>
             <Users className="w-5 h-5 text-indigo-600" />
           </div>
           <p className="text-2xl font-black text-indigo-900 mt-2">
@@ -158,7 +167,6 @@ export default function UserDashboard({ currentUserId }: UserDashboardProps) {
           </p>
         </div>
 
-        {/* Total Setoran */}
         <div className="bg-white border border-gray-200 p-5 rounded-2xl shadow-sm">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Total Setoran Saya</span>
@@ -169,10 +177,9 @@ export default function UserDashboard({ currentUserId }: UserDashboardProps) {
           </p>
         </div>
 
-        {/* Pending Setoran Alert */}
         <div className="bg-white border border-gray-200 p-5 rounded-2xl shadow-sm">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Tagihan Periode Ini</span>
+            <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">Tagihan Periode Ini[cite: 1]</span>
             {unpaidCount > 0 ? (
               <AlertCircle className="w-5 h-5 text-amber-500" />
             ) : (
@@ -185,23 +192,27 @@ export default function UserDashboard({ currentUserId }: UserDashboardProps) {
         </div>
       </div>
 
-      {/* SECTION 1: MY ARISAN GROUPS */}
+      {/* 1. BAGIAN: ARISAN DIikuti & 3. TAGIHAN PERIODE INI */}
       <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
         <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
           <Trophy className="w-5 h-5 text-amber-500" />
-          Kelompok Arisan Saya
+          1. Kelompok Arisan Saya & Tagihan Periode Ini
         </h3>
 
         {myArisanGroups.length === 0 ? (
           <div className="text-center py-6 text-gray-400 text-sm">
-            Anda belum bergabung dalam kelompok arisan manapun.
+            Anda belum terdaftar dalam kelompok arisan manapun.
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {myArisanGroups.map((g) => (
               <div 
                 key={g.id} 
-                className="border border-gray-200 rounded-xl p-4 bg-gray-50/50 hover:bg-gray-50 transition space-y-3"
+                className={`border rounded-xl p-4 transition space-y-3 ${
+                  !g.hasPaidCurrentCycle && g.isActive 
+                    ? 'border-amber-300 bg-amber-50/30' 
+                    : 'border-gray-200 bg-gray-50/50'
+                }`}
               >
                 <div className="flex justify-between items-start">
                   <div>
@@ -211,9 +222,9 @@ export default function UserDashboard({ currentUserId }: UserDashboardProps) {
                     <h4 className="font-bold text-gray-900 text-base mt-1">{g.groupName}</h4>
                   </div>
                   <span className={`text-xs px-2.5 py-1 rounded-full font-bold ${
-                    g.status === 'aktif' ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-700'
+                    g.isActive ? 'bg-emerald-100 text-emerald-800' : 'bg-gray-200 text-gray-700'
                   }`}>
-                    {g.status === 'aktif' ? 'Aktif' : 'Selesai'}
+                    {g.isActive ? 'Aktif' : 'Selesai'}
                   </span>
                 </div>
 
@@ -225,32 +236,33 @@ export default function UserDashboard({ currentUserId }: UserDashboardProps) {
                   <div>
                     <span className="text-gray-500 block">Kocokan Saat Ini:</span>
                     <span className="font-bold text-indigo-600">
-                      Ronde #{g.currentCycle} / {g.totalCycles}
+                      Ronde #{g.currentCycle} {g.totalCycles ? `/ ${g.totalCycles}` : ''}
                     </span>
                   </div>
                 </div>
 
-                <div className="flex justify-between items-center text-xs">
-                  {/* Winner Badge */}
-                  <div>
+                {/* Status Kemenangan & Tagihan Periode Ini */}
+                <div className="space-y-2 pt-1">
+                  <div className="flex justify-between items-center text-xs">
+                    <span className="text-gray-500">Status Pemenang:</span>
                     {g.isWinner ? (
-                      <span className="inline-flex items-center gap-1 font-bold text-amber-600 bg-amber-50 border border-amber-200 px-2 py-1 rounded-lg">
-                        <Trophy className="w-3.5 h-3.5" /> Sudah Menang
+                      <span className="inline-flex items-center gap-1 font-bold text-amber-700 bg-amber-100 border border-amber-300 px-2 py-0.5 rounded-md">
+                        <Trophy className="w-3 h-3" /> Sudah Menang
                       </span>
                     ) : (
-                      <span className="text-gray-500 italic">Belum Menang</span>
+                      <span className="text-gray-600 font-medium">Belum Menang</span>
                     )}
                   </div>
 
-                  {/* Payment Status for current cycle */}
-                  <div>
+                  <div className="flex justify-between items-center text-xs border-t border-dashed border-gray-200 pt-2">
+                    <span className="text-gray-600 font-semibold">Tagihan Ronde #{g.currentCycle}:</span>
                     {g.hasPaidCurrentCycle ? (
-                      <span className="inline-flex items-center gap-1 font-bold text-emerald-700 bg-emerald-100 px-2 py-1 rounded-lg">
-                        <CheckCircle className="w-3.5 h-3.5" /> Setoran Lunas
+                      <span className="inline-flex items-center gap-1 font-bold text-emerald-700 bg-emerald-100 px-2 py-0.5 rounded-md">
+                        <CheckCircle className="w-3 h-3" /> Lunas (Rp {g.nominal.toLocaleString('id-ID')})
                       </span>
                     ) : (
-                      <span className="inline-flex items-center gap-1 font-bold text-amber-700 bg-amber-100 px-2 py-1 rounded-lg">
-                        <Clock className="w-3.5 h-3.5" /> Belum Setor (Ronde #{g.currentCycle})
+                      <span className="inline-flex items-center gap-1 font-bold text-amber-800 bg-amber-200 px-2 py-0.5 rounded-md">
+                        <Clock className="w-3 h-3" /> Wajib Bayar: Rp {g.nominal.toLocaleString('id-ID')}
                       </span>
                     )}
                   </div>
@@ -261,68 +273,92 @@ export default function UserDashboard({ currentUserId }: UserDashboardProps) {
         )}
       </div>
 
-      {/* SECTION 2: PAYMENT HISTORY LOGS */}
-      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-4">
+      {/* 2. BAGIAN: SETORAN GROUP BY EACH ARISAN */}
+      <div className="bg-white border border-gray-200 rounded-2xl p-5 shadow-sm space-y-6">
         <h3 className="font-bold text-gray-900 text-base flex items-center gap-2">
-          <Calendar className="w-5 h-5 text-indigo-600" />
-          Riwayat Transaksi & Setoran Saya
+          <Layers className="w-5 h-5 text-indigo-600" />
+          2. Riwayat Setoran per Kelompok Arisan[cite: 1]
         </h3>
 
-        <div className="overflow-x-auto border border-gray-200 rounded-xl">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead className="bg-gray-100 text-gray-700 border-b border-gray-200 font-bold uppercase">
-              <tr>
-                <th className="py-3 px-4">No. Resi / Tanggal</th>
-                <th className="py-3 px-4">Kategori</th>
-                <th className="py-3 px-4">Kocokan / Ket</th>
-                <th className="py-3 px-4 text-right">Nominal</th>
-                <th className="py-3 px-4 text-center">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-200">
-              {myPayments.length === 0 ? (
-                <tr>
-                  <td colSpan={5} className="text-center py-6 text-gray-400">
-                    Belum ada riwayat transaksi setoran.
-                  </td>
-                </tr>
-              ) : (
-                myPayments.map((p) => (
-                  <tr key={p.id} className="hover:bg-gray-50 transition">
-                    <td className="py-3 px-4">
-                      <p className="font-bold text-gray-800">{p.receipt_number || '-'}</p>
-                      <p className="text-[10px] text-gray-400">
-                        {new Date(p.created_at).toLocaleDateString('id-ID', {
-                          day: '2-digit',
-                          month: 'short',
-                          year: 'numeric',
-                        })}
-                      </p>
-                    </td>
-                    <td className="py-3 px-4">
-                      <span className={`font-semibold ${
-                        p.category === 'setoran_arisan' ? 'text-indigo-600' : 'text-emerald-600'
-                      }`}>
-                        {p.category === 'setoran_arisan' ? 'Setoran Arisan' : 'Kas Operasional'}
-                      </span>
-                    </td>
-                    <td className="py-3 px-4 text-gray-600">
-                      {p.cycle_schedule ? `Kocokan Ke-${p.cycle_schedule}` : p.description || '-'}
-                    </td>
-                    <td className="py-3 px-4 text-right font-mono font-bold text-gray-900">
-                      Rp {Math.abs(Number(p.amount) || 0).toLocaleString('id-ID')}
-                    </td>
-                    <td className="py-3 px-4 text-center">
-                      <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
-                        <CheckCircle className="w-3 h-3" /> Sukses
-                      </span>
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
+        {myArisanGroups.length === 0 ? (
+          <div className="text-center py-4 text-gray-400 text-sm">
+            Belum ada kelompok arisan.
+          </div>
+        ) : (
+          myArisanGroups.map((group) => {
+            const groupLogs = paymentsByGroup[group.id] || [];
+            return (
+              <div key={group.id} className="border border-gray-200 rounded-xl overflow-hidden">
+                {/* Header Sub-Tabel Kelompok */}
+                <div className="bg-indigo-50/70 border-b border-gray-200 px-4 py-3 flex justify-between items-center">
+                  <div className="flex items-center gap-2">
+                    <Receipt className="w-4 h-4 text-indigo-600" />
+                    <span className="font-bold text-gray-900 text-sm">{group.groupName}</span>
+                    <span className="text-[10px] font-bold bg-indigo-200 text-indigo-800 px-2 py-0.5 rounded">
+                      {group.groupCode}
+                    </span>
+                  </div>
+                  <span className="text-xs font-semibold text-gray-600">
+                    Total Transaksi: {groupLogs.length} Kali
+                  </span>
+                </div>
+
+                {/* Tabel Transaksi Per Kelompok */}
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs border-collapse">
+                    <thead className="bg-gray-50 text-gray-600 border-b border-gray-200 font-bold uppercase">
+                      <tr>
+                        <th className="py-2.5 px-4">No. Resi / Tanggal</th>
+                        <th className="py-2.5 px-4">Kategori</th>
+                        <th className="py-2.5 px-4">Ronde / Ket</th>
+                        <th className="py-2.5 px-4 text-right">Nominal Setoran</th>
+                        <th className="py-2.5 px-4 text-center">Status</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200">
+                      {groupLogs.length === 0 ? (
+                        <tr>
+                          <td colSpan={5} className="text-center py-4 text-gray-400 italic">
+                            Belum ada riwayat setoran untuk kelompok ini.
+                          </td>
+                        </tr>
+                      ) : (
+                        groupLogs.map((p) => (
+                          <tr key={p.id} className="hover:bg-gray-50 transition">
+                            <td className="py-2.5 px-4">
+                              <p className="font-bold text-gray-800">{p.receipt_number || '-'}</p>
+                              <p className="text-[10px] text-gray-400">
+                                {new Date(p.created_at).toLocaleDateString('id-ID', {
+                                  day: '2-digit',
+                                  month: 'short',
+                                  year: 'numeric',
+                                })}
+                              </p>
+                            </td>
+                            <td className="py-2.5 px-4 font-semibold text-indigo-600">
+                              {p.category === 'setoran_arisan' ? 'Setoran Arisan' : p.category}
+                            </td>
+                            <td className="py-2.5 px-4 text-gray-600">
+                              {p.cycle_schedule ? `Kocokan Ke-${p.cycle_schedule}` : p.description || '-'}
+                            </td>
+                            <td className="py-2.5 px-4 text-right font-mono font-bold text-gray-900">
+                              Rp {Math.abs(Number(p.amount) || 0).toLocaleString('id-ID')}
+                            </td>
+                            <td className="py-2.5 px-4 text-center">
+                              <span className="bg-emerald-100 text-emerald-800 text-[10px] font-bold px-2 py-0.5 rounded-full inline-flex items-center gap-1">
+                                <CheckCircle className="w-3 h-3" /> Sukses
+                              </span>
+                            </td>
+                          </tr>
+                        ))
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            );
+          })
+        )}
       </div>
     </div>
   );
